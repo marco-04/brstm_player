@@ -1,6 +1,7 @@
 import 'dart:core';
 import 'dart:io';
-import 'dart:typed_data';
+
+//import 'dart:typed_data';
 
 class BRSTM {
   bool isBRSTM = false;
@@ -20,69 +21,57 @@ class BRSTM {
   bool loop = false;
   int loopStartSample = 0;
   int totalSamples = 0;
-
-  static const int INITIAL_POSITION = 0x10;
-
-  int curPos = 0;
+  int fileSize = -1;
+  static const int initialPosition = 0x10;
 
   File? brstmFile;
-  RandomAccessFile? brstmContents;
+  RandomAccessFile? _contentsPointer;
 
+  /// Create an BRSTM object.
+  ///
+  ///  If `path` does not exist an Exception is raised.
   BRSTM(String path) {
-    if(!File(path).existsSync()) {
+    if (!File(path).existsSync()) {
       throw Exception("File $path does not exist");
     }
     brstmFile = File(path);
+    fileSize = brstmFile!.lengthSync();
+    _contentsPointer = null;
+  }
+
+  void open() {
+    _contentsPointer = brstmFile!.openSync();
+    setPos(0);
+    isBRSTM = getString(4) == "RSTM";
+  }
+
+  void close() {
+    if (!isOpen()) {
+      return;
+    }
+    _contentsPointer!.closeSync();
   }
 
   bool isOpen() {
-    return brstmContents != null;
+    return _contentsPointer != null;
   }
 
+  ///Sets pointer position to `pos`
   void setPos(int pos) {
     if (isOpen()) {
-      brstmContents!.setPositionSync(pos);
-      updatePos();
+      _contentsPointer!.setPositionSync(pos);
     }
   }
 
+  /// Reads `len` bytes starting at current position (included).
   String? getString(int len) {
+    if (!isOpen()) {
+      return null;
+    }
     String ret = "";
-    if (isOpen()) {
-      for (int i = 0; i < len; i++) {
-        ret += String.fromCharCode(brstmContents!.readByteSync());
-      }
-      updatePos();
-      return ret;
+    for (int i = 0; i < len; i++) {
+      ret += String.fromCharCode(_contentsPointer!.readByteSync());
     }
-    return null;
-  }
-
-  void updatePos() {
-    curPos = brstmContents!.positionSync();
-  }
-
-  int? readData({int offset = 0}) {
-    if (isOpen()) {
-      if (offset < 0) {
-        return null;
-      }
-
-      if (offset > 0) {
-        brstmContents!.setPositionSync(curPos+offset);
-      }
-
-      return brstmContents!.readByteSync();
-    }
-    return null;
-  }
-  
-  void open() {
-    brstmContents = brstmFile!.openSync();
-
-    setPos(0);
-    if (getString(4) == "RSTM") {
-      isBRSTM = true;
-    }
+    return ret;
   }
 }

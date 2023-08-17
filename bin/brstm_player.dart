@@ -6,4 +6,5 @@ void main(List<String> arguments) {
   var test = BRSTM("/home/marcosti/Documents/BRSTM/Same Old Story - Hi-Pi.brstm");
   test.open();
   print(test.isBRSTM);
+  test.read();
 }

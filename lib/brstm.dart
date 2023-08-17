@@ -26,7 +26,8 @@ class BRSTM {
   int curPos = 0;
 
   File? brstmFile;
-  RandomAccessFile? brstmContents;
+  Uint8List? brstmBuffer;
+  ByteData? brstmContents;
 
   BRSTM(String path) {
     if(!File(path).existsSync()) {
@@ -41,48 +42,51 @@ class BRSTM {
 
   void setPos(int pos) {
     if (isOpen()) {
-      brstmContents!.setPositionSync(pos);
-      updatePos();
+      curPos = pos;
     }
   }
 
   String? getString(int len) {
-    String ret = "";
     if (isOpen()) {
-      for (int i = 0; i < len; i++) {
-        ret += String.fromCharCode(brstmContents!.readByteSync());
-      }
-      updatePos();
-      return ret;
+      Uint8List list = Uint8List.sublistView(brstmContents as TypedData, curPos, curPos+len);
+      return String.fromCharCodes(list);
     }
     return null;
   }
 
-  void updatePos() {
-    curPos = brstmContents!.positionSync();
-  }
+  // int? readData({int offset = 0}) {
+  //   if (isOpen()) {
+  //     if (offset < 0) {
+  //       return null;
+  //     }
 
-  int? readData({int offset = 0}) {
-    if (isOpen()) {
-      if (offset < 0) {
-        return null;
-      }
+  //     if (offset > 0) {
+  //       brstmContents!.setPositionSync(curPos+offset);
+  //     }
 
-      if (offset > 0) {
-        brstmContents!.setPositionSync(curPos+offset);
-      }
-
-      return brstmContents!.readByteSync();
-    }
-    return null;
-  }
+  //     return brstmContents!.readByteSync();
+  //   }
+  //   return null;
+  // }
   
   void open() {
-    brstmContents = brstmFile!.openSync();
+    if (!isOpen()) {
+      brstmBuffer = brstmFile!.readAsBytesSync();
+      brstmContents = ByteData.view(brstmBuffer!.buffer);
 
-    setPos(0);
-    if (getString(4) == "RSTM") {
-      isBRSTM = true;
+      setPos(0);
+      if (getString(4) == "RSTM") {
+        isBRSTM = true;
+      }
+    }
+  }
+
+  void read() {
+    if (isOpen()) {
+      setPos(brstmContents!.getUint32(INITIAL_POSITION));
+      if (getString(4) == "HEAD") {
+        print("OK");
+      }
     }
   }
 }

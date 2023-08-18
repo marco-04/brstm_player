@@ -27,26 +27,31 @@ class BRSTM {
 
   File? _brstmFile;
   Uint8List? _brstmBuffer;
-  ByteData? _brstmContents;
+  ByteData? _contentsPointer;
+  //ByteData? _brstmContents;
 
+  /// Create an BRSTM object.
+  ///
+  ///  If `path` does not exist an Exception is raised.
   BRSTM(String path) {
-    if(!File(path).existsSync()) {
+    if (!File(path).existsSync()) {
       throw Exception("File $path does not exist");
     }
     _brstmFile = File(path);
   }
 
-  bool isOpen() => _brstmContents != null;
+  bool isOpen() => _contentsPointer != null;
   bool isBrstm() => _isBrstmFile;
 
   void setPos(int pos) => _curPos = pos;
   int getPos() => _curPos;
 
+  /// Reads `len` bytes starting at current position (included).
   String? getString(int len) {
     if (!isOpen())
       return null;
 
-    Uint8List list = Uint8List.sublistView(_brstmContents as TypedData, _curPos, _curPos+len);
+    Uint8List list = Uint8List.sublistView(_contentsPointer as TypedData, _curPos, _curPos+len);
     return String.fromCharCodes(list);
   }
 
@@ -70,7 +75,7 @@ class BRSTM {
       return;
 
     _brstmBuffer = _brstmFile!.readAsBytesSync();
-    _brstmContents = ByteData.view(_brstmBuffer!.buffer);
+    _contentsPointer = ByteData.view(_brstmBuffer!.buffer);
 
     setPos(0);
     if (getString(4) == "RSTM") {
@@ -82,7 +87,7 @@ class BRSTM {
     if (!isOpen())
       return;
       
-    setPos(_curPos = _brstmContents!.getUint32(_INITIAL_POSITION));
+    setPos(_curPos = _contentsPointer!.getUint32(_INITIAL_POSITION));
     if (getString(4) == "HEAD") {
       _head = _curPos;
       print("OK");

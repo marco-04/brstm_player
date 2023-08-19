@@ -3,7 +3,7 @@ import 'package:brstm_player/brstm.dart';
 
 void main(List<String> arguments) {
   var test = BRSTM("./assets/epic_sax.brstm");
-  test.open();
+  test.openSync();
   print(test.isBrstm());
-  test.read();
+  test.readSync();
 }

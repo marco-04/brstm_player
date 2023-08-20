@@ -94,13 +94,10 @@ class BRSTM {
   }
 
   int _readUint24(ByteData buf, int offset) {
-    // Two bites padding
-    const int PADDING = 2;
-    int tmp = buf.getUint16(offset);
-    // Shift tmp by one byte (8 bits)
-    tmp <<= 8;
-    // Add the last byte
-    tmp += buf.getUint8(offset+PADDING);
+    // Get an Uint32
+    int tmp = buf.getUint32(offset);
+    // Shift tmp by one byte (8 bits) to the right to get rid of the rightmost byte
+    tmp >>= 8;
     return tmp;
   }
 

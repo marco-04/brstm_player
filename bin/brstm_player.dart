@@ -19,8 +19,14 @@ void main(List<String> arguments) async {
   //convertSync("./assets/epic_sax.brstm", 0, 1, 2, ".", brstm_converter: true);
 
   //brstmPlayer test2 = brstmPlayer(1, 2, 44100, 0, 749491, "./assets/epic_sax.brstm");
-  brstmPlayer test2 = brstmPlayer(1, 2, 32000, 172032, 1552737, "<path_to>/n_skate_F.brstm");
-  await test2.setTrack(0);
-  await test2.play();
+  // brstmPlayer test2 = brstmPlayer(1, 2, 32000, 172032, 1552737, "<path_to>/n_skate_F.brstm");
+  // await test2.setTrack(0);
+  // await test2.play();
   //await test2.init();
+  MPVPlayer mpv = MPVPlayer();
+  mpv.binary = "mpv";
+  mpv.pipe = "/tmp/mpvtmp";
+  await mpv.start();
+  await Future.delayed(Duration(seconds: 2));
+  await mpv.send("", 0);
 }

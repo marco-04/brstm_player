@@ -8,6 +8,8 @@ environment:
 
 # Add regular dependencies here.
 dependencies:
+  mpv_dart: ^0.0.1
+  tint: ^2.0.1
   # path: ^1.8.0
 
 dev_dependencies:

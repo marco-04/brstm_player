@@ -25,11 +25,12 @@ void main(List<String> arguments) async {
   //await test2.init();
   MPVPlayer mpv = MPVPlayer();
   mpv.binary = "mpv";
+  mpv.file = "./assets/epic_sax.brstm";
   mpv.pipe = "/tmp/mpvtmp";
   // mpv.pipe = "./mpvtmp";
   await mpv.start();
   await Future.delayed(Duration(seconds: 2));
   await mpv.getTimePos();
   await mpv.enableLoop();
-  await mpv.setLoopPoint(3.5);
+  await mpv.setLoopPoint(5.376);
 }

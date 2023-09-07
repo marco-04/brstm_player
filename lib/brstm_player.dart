@@ -6,6 +6,7 @@ const int _MAX_TRACKS = 8;
 
 class MPVPlayer {
   String binary = "";
+  String file = "";
   String pipe = "";
   double seconds = 0;
   double loopPoint = 0;
@@ -18,7 +19,7 @@ class MPVPlayer {
   
   Future<void> start() async {
     if (!await File(pipe).exists()) {
-      mpvProcess = await Process.start(binary, ["./assets/epic_sax.brstm", "--input-ipc-server=$pipe", "--quiet" ], runInShell: false);
+      mpvProcess = await Process.start(binary, [file, "--input-ipc-server=$pipe", "--quiet" ], runInShell: false);
       mpvProcess!.stdout.transform(utf8.decoder).listen((data) {
         print(data);
       });
@@ -32,7 +33,11 @@ class MPVPlayer {
 
   Future<void> getTimePos() async {
     // await send(r'show-text {"result":${time-pos},"requestType":"playback"}');
-    await send('show-text ${jsonGen("time-pos", "playback")}');
+    await send("show-text ${jsonGen('=time-pos', 'playback')}");
+  }
+
+  Future<void> toggleLoop() async {
+    await send("cycle-values ab-loop-count 'inf' 'no'");
   }
 
   Future<void> enableLoop() async {
@@ -53,6 +58,7 @@ class MPVPlayer {
 
   Future<void> setLoopPoint(double seconds) async {
     await send("set ab-loop-a $seconds");
+    await send(r"set ab-loop-b ${=duration}");
   }
 
   Future<void> quit() async {

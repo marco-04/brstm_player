@@ -26,7 +26,10 @@ void main(List<String> arguments) async {
   MPVPlayer mpv = MPVPlayer();
   mpv.binary = "mpv";
   mpv.pipe = "/tmp/mpvtmp";
+  // mpv.pipe = "./mpvtmp";
   await mpv.start();
   await Future.delayed(Duration(seconds: 2));
-  await mpv.send("", 0);
+  await mpv.getTimePos();
+  await mpv.enableLoop();
+  await mpv.setLoopPoint(3.5);
 }

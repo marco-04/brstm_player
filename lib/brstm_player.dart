@@ -28,8 +28,11 @@ class MPVPlayer {
     }
   }
 
+  String jsonGen(String property, String requestType) => r'{"result":${' + property + '},"requestType":"$requestType"}';
+
   Future<void> getTimePos() async {
-    await send(r'''echo 'show-text {"result":${time-pos},"requestType":"playback"}' ''');
+    // await send(r'show-text {"result":${time-pos},"requestType":"playback"}');
+    await send('show-text ${jsonGen("time-pos", "playback")}');
   }
 
   Future<void> enableLoop() async {
@@ -57,7 +60,7 @@ class MPVPlayer {
   }
   
   Future<void> send(String cmd) async {
-    await Process.run("sh", ["-c", cmd + ''' | socat - $pipe''']);
+    await Process.run("sh", ["-c", "echo '$cmd'" + " | socat - $pipe"]);
   }
   
   Future<void> read(String ret) async {
@@ -85,6 +88,7 @@ class MPVPlayer {
       exec(readret["result"]);
     } on FormatException catch (e) {
       print(e);
+      print(ret);
     }
   }
   

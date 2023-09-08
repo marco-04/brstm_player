@@ -1,4 +1,5 @@
 import 'package:brstm_player/brstm.dart';
+import 'dart:io';
 import 'package:brstm_player/ffmpeg_convert.dart';
 import 'package:brstm_player/brstm_player.dart';
 
@@ -27,10 +28,14 @@ void main(List<String> arguments) async {
   mpv.binary = "mpv";
   mpv.file = "./assets/epic_sax.brstm";
   mpv.pipe = "/tmp/mpvtmp";
+  await Process.run("rm", [mpv.pipe]);
   // mpv.pipe = "./mpvtmp";
   await mpv.start();
   await Future.delayed(Duration(seconds: 2));
-  await mpv.getTimePos();
   await mpv.enableLoop();
   await mpv.setLoopPoint(5.376);
+  while (mpv.isRunning) {
+    print(mpv.getTimePos());
+    await Future.delayed(Duration(seconds: 1));
+  }
 }

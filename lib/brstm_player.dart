@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:tint/tint.dart';
 import 'dart:convert';
 
@@ -12,6 +13,10 @@ class MPVPlayer {
   double loopPoint = 0;
   int curTrack = 0;
   bool loop = false;
+
+  bool isRunning = false;
+
+  double timePos = 0;
   
   // List<String> cmdBuf = List<String>(10);
   
@@ -20,18 +25,26 @@ class MPVPlayer {
   Future<void> start() async {
     if (!await File(pipe).exists()) {
       mpvProcess = await Process.start(binary, [file, "--input-ipc-server=$pipe", "--quiet" ], runInShell: false);
+
+      isRunning = true;
+
       mpvProcess!.stdout.transform(utf8.decoder).listen((data) {
         print(data);
       });
       mpvProcess!.stderr.transform(utf8.decoder).listen((data) {
-        print(data.strip());
+        read(data.strip());
+        // print(data.strip());
+      });
+
+      Timer timeUpdate = Timer.periodic(Duration(milliseconds: 300), (timer) {
+        updateTimePos();
       });
     }
   }
 
   String jsonGen(String property, String requestType) => r'{"result":${' + property + '},"requestType":"$requestType"}';
 
-  Future<void> getTimePos() async {
+  Future<void> updateTimePos() async {
     // await send(r'show-text {"result":${time-pos},"requestType":"playback"}');
     await send("show-text ${jsonGen('=time-pos', 'playback')}");
   }
@@ -68,7 +81,9 @@ class MPVPlayer {
   Future<void> send(String cmd) async {
     await Process.run("sh", ["-c", "echo '$cmd'" + " | socat - $pipe"]);
   }
-  
+
+  double getTimePos() => timePos;
+
   Future<void> read(String ret) async {
     try {
       Function? exec;
@@ -79,7 +94,7 @@ class MPVPlayer {
       }
       switch(readret["requestType"]) {
         case "playback":
-          // exec = FUNZIONE;
+          exec = (double pos) => timePos = pos;
           break;
         // case "":
           // break;
@@ -92,8 +107,8 @@ class MPVPlayer {
       }
 
       exec(readret["result"]);
-    } on FormatException catch (e) {
-      print(e);
+    } on FormatException {
+      // print(e);
       print(ret);
     }
   }

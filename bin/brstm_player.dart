@@ -39,4 +39,5 @@ void main(List<String> arguments) async {
     print(mpv.getTimePos());
     await Future.delayed(Duration(seconds: 1));
   }
+  print("Player closed");
 }

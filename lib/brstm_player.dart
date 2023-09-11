@@ -58,6 +58,7 @@ class MPVPlayer {
 
     timeUpdate = Timer.periodic(Duration(milliseconds: updateInterval), (timer) {
       updateTimePos();
+      if (!_pingLock) checkIfRunning();
     });
   }
 
@@ -86,14 +87,14 @@ class MPVPlayer {
     await send("show-text ${jsonGen("true", "ping")}");
     await Future.delayed(Duration(milliseconds: 2*updateInterval));
 
-    isRunning = _pingResult;
-
-    if (!isRunning) {
+    if (!_pingResult) {
       cancelTimeUpdate();
+      quit();
       _pingLock = false;
       throw Exception("[FAILED]: Player reply timeout");
     }
 
+    _pingResult = false;
     _pingLock = false;
   }
 
@@ -160,7 +161,7 @@ class MPVPlayer {
 
   Future<void> quit() async {
     await send("quit");
-    await File(pipe).delete();
+    isRunning = false;
   }
   
   Future<void> send(String cmd) async {

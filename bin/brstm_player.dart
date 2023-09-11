@@ -28,6 +28,7 @@ void main(List<String> arguments) async {
   mpv.binary = "mpv";
   mpv.file = "./assets/epic_sax.brstm";
   mpv.pipe = "/tmp/mpvtmp";
+  mpv.updateInterval = 300;
   await Process.run("rm", [mpv.pipe]);
   // mpv.pipe = "./mpvtmp";
   await mpv.start();

@@ -6,11 +6,11 @@ import 'dart:convert';
 const int _MAX_TRACKS = 8;
 
 class MPVPlayer {
-  String binary = "";
+  String binary = "mpv";
   String file = "";
   String pipe = "";
-  double duration = 0;
-  double timePos = 0;
+  double _duration = 0;
+  double _timePos = 0;
   double loopPoint = 0;
   int curTrack = 0;
   int nTracks = 0;
@@ -18,25 +18,38 @@ class MPVPlayer {
 
   int updateInterval = 0;
 
-  bool isRunning = false;
+  bool _isRunning = false;
+  // bool _isConnected = false;
+
+  // bool _cancelLoad = false;
 
   bool _pingLock = false;
   bool _pingResult = false;
 
   Process? mpvProcess;
 
-  Timer? timeUpdate;
-  
+  Timer? _periodicAction;
+
+  // Timer? timeoutCheck;
+
+  // Future<void> _timeoutCheck() async {
+  //   timeoutCheck = Timer.periodic(Duration(seconds: 1), (timer) {
+  //     if (!_pingLock) checkIfRunning();
+  //   });
+  // }
+
   Future<void> start() async {
-    if (isRunning) return;
+    if (_isRunning) return;
 
     try {
-      mpvProcess = await Process.start(binary, [file, "--input-ipc-server=$pipe", "--quiet", "--idle=yes" ], runInShell: false);
+      mpvProcess = await Process.start(binary, ["--input-ipc-server=$pipe", "--quiet", "--idle=yes" ], runInShell: false);
     } catch(e) {
-      throw Exception("[FAILED]: Cannot start mpv player instance ($e)");
+      throw Exception("[ERROR]: Cannot start mpv player instance ($e)");
     }
 
-    isRunning = true;
+    _isRunning = true;
+    // _isConnected = false;
+    // _cancelLoad = false;
 
     mpvProcess!.stdout.transform(utf8.decoder).listen((data) {
       print(data);
@@ -46,87 +59,121 @@ class MPVPlayer {
       // print(data.strip());
     });
 
-    await setTimeUpdate();
-
-    await updateDuration();
+    // _timeoutCheck();
   }
 
   Future<void> setTimeUpdate() async {
-    if (!isRunning) {
+    if (!_isRunning) {
       return;
     }
 
-    timeUpdate = Timer.periodic(Duration(milliseconds: updateInterval), (timer) {
+    _periodicAction = Timer.periodic(Duration(milliseconds: updateInterval), (timer) {
       updateTimePos();
-      if (!_pingLock) checkIfRunning();
+      // if (!_pingLock) checkIfRunning();
     });
   }
 
-  Future<void> cancelTimeUpdate() async {
-    if (timeUpdate != null) {
-      timeUpdate!.cancel();
-      timeUpdate = null;
+  Future<void> cancelPeriodicAction() async {
+    if (_periodicAction != null) {
+      _periodicAction!.cancel();
+      _periodicAction = null;
     }
   }
 
   String jsonGen(String property, String requestType) => '{"result":$property,"requestType":"$requestType"}';
 
-  Future<void> checkIfRunning() async {
-    if (!isRunning) {
-      return;
-    }
+  // void checkIfRunning() {
+  //   int timeout = 4;
 
-    while (_pingLock);
+  //   if (!_isRunning) {
+  //     return;
+  //   }
 
-    if (!isRunning) {
-      return;
-    }
+  //   while (_pingLock) sleep(Duration(milliseconds: updateInterval));
 
-    _pingLock = true;
+  //   if (!_isRunning) {
+  //     return;
+  //   }
 
-    await send("show-text ${jsonGen("true", "ping")}");
-    await Future.delayed(Duration(milliseconds: 2*updateInterval));
+  //   _pingLock = true;
 
-    if (!_pingResult) {
-      cancelTimeUpdate();
-      quit();
-      _pingLock = false;
-      throw Exception("[FAILED]: Player reply timeout");
-    }
+  //   send("show-text ${jsonGen("true", "ping")}");
+  //   while (!_pingResult && timeout > 0) {
+  //    sleep(Duration(seconds: 1));
+  //     timeout--;
+  //   }
 
-    _pingResult = false;
-    _pingLock = false;
-  }
+  //   if (!_pingResult) {
+  //     cancelPeriodicAction();
+  //     quit();
+  //     _pingLock = false;
+  //     throw Exception("[ERROR]: Player reply timeout");
+  //   }
+
+  //   _pingResult = false;
+  //   _pingLock = false;
+  // }
 
   Future<void> switchToTrack(int track) async {
     if (nTracks < 2) return;
     if (track < 0 || track >= _MAX_TRACKS) {
-      throw Exception("[FAILED]: Invalid track number");
+      throw Exception("[ERROR]: Invalid track number");
     }
     await send("af set lavfi=[pan=${nTracks*2}c|c0=c${track*2}|c1=c${(track*2)+1}]");
   }
 
+  // Future<void> _periodicLoadFile(String file) async {
+  //   _periodicAction = Timer.periodic(Duration(seconds: 1), (timer) {
+  //     send("loadfile $file replace");
+  //     updateCurrentlyPlaying();
+  //   });
+  // }
+
   Future<void> loadFile(String file) async {
+    // if (!_isRunning) {
+    //   return;
+    // }
+    // await cancelPeriodicAction();
+    // _isConnected = false;
+    // _duration = 0;
+
+    // _periodicLoadFile(file);
+
+    // while (this.file != file && !_cancelLoad) await Future.delayed(Duration(milliseconds: updateInterval));
+    // if (_cancelLoad) {
+    //   return;
+    // }
+    // await cancelPeriodicAction();
+    // _isConnected = true;
+
+    // await Future.delayed(Duration(milliseconds: updateInterval));
+
     await send("loadfile $file replace");
+
+    await setTimeUpdate();
+
+    await updateDuration();
   }
 
   double getPercentDuration() {
-    if (!isRunning) {
-      throw Exception("[FAILED]: Player is not running");
+    if (!_isRunning) {
+      throw Exception("[ERROR]: Player is not running");
     }
-    if (duration == 0) {
-      throw Exception("[FAILED]: Invalid duration");
+    if (_duration == 0) {
+      throw Exception("[ERROR]: Invalid duration");
     }
-    return timePos/duration;
+    return _timePos/_duration;
   }
 
   Future<void> updateTimePos() async {
-    // await send(r'show-text {"result":${time-pos},"requestType":"playback"}');
     await send("show-text ${jsonGen(r'${=time-pos}', 'playback')}");
   }
 
+  Future<void> updateCurrentlyPlaying() async {
+    await send("show-text ${jsonGen(r'"${path}"', 'current')}");
+  }
+
   Future<void> updateDuration() async {
-    // await send(r'show-text {"result":${time-pos},"requestType":"playback"}');
     await send("show-text ${jsonGen(r'${=duration}', 'duration')}");
   }
 
@@ -143,11 +190,11 @@ class MPVPlayer {
   }
 
   Future<void> play() async {
-    await send("play");
+    await send("set pause false");
   }
 
   Future<void> pause() async {
-    await send("pause");
+    await send("set pause true");
   }
 
   Future<void> setLoopPoint(double seconds) async {
@@ -156,19 +203,36 @@ class MPVPlayer {
   }
   
   Future<void> stop() async {
+    // _cancelLoad = true;
     await send("stop");
   }
 
+  Future<void> seek(double seconds) async {
+    await send("seek $seconds absolute");
+  }
+
   Future<void> quit() async {
+    // _cancelLoad = true;
     await send("quit");
-    isRunning = false;
+    _isRunning = false;
   }
   
   Future<void> send(String cmd) async {
-    await Process.run("sh", ["-c", "echo '$cmd'" + " | socat - $pipe"]);
+    if (Platform.isLinux) {
+      await Process.run("sh", ["-c", "echo '$cmd'" + " | socat - $pipe"]);
+    } else {
+      throw Exception("[ERROR]: Windows cmd is not yet implemented");
+    }
+    // if (!_isConnected) {
+    //   print("[WARNING]: Could not verify the connection with mpv");
+    // }
   }
 
-  double getTimePos() => timePos;
+  double getTimePos() => _timePos;
+
+  double getDuration() => _duration;
+
+  bool getRunningState() => _isRunning;
 
   Future<void> read(String ret) async {
     try {
@@ -180,13 +244,15 @@ class MPVPlayer {
       }
       switch(readret["requestType"]) {
         case "playback":
-          exec = (double pos) => timePos = pos;
+          exec = (double pos) => _timePos = pos;
           break;
         case "duration":
-          exec = (double duration) => this.duration = duration;
+          exec = (double duration) => _duration = duration;
           break;
         case "ping":
           exec = (bool pingResult) => _pingResult = pingResult;
+        case "current":
+          exec = (String current) => file = current;
         default:
           break;
       }
@@ -217,7 +283,7 @@ class brstmPlayer {
 
   String? filter;
 
-  // MPVPlayer player = MPVPlayer(verbose: true, timeUpdate: 1);
+  // MPVPlayer player = MPVPlayer(verbose: true, _periodicAction: 1);
 
   brstmPlayer(int tracks, int channels, int sampleRate, int loopStartSample, int duration, String path) {
     // _tracks = tracks;

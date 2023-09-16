@@ -2,8 +2,11 @@ import 'package:brstm_player/brstm.dart';
 import 'dart:io';
 import 'package:brstm_player/ffmpeg_convert.dart';
 import 'package:brstm_player/brstm_player.dart';
+import 'dart:async';
 
 void main(List<String> arguments) async {
+  String brstmPath = "/tmp/epic_sax.brstm";
+  int track = 0;
   var test = BRSTM("./assets/epic_sax.brstm");
   print(r"\\\\\\\\\");
   print(test);
@@ -26,6 +29,7 @@ void main(List<String> arguments) async {
   //await test2.init();
   MPVPlayer mpv = MPVPlayer();
   mpv.binary = "mpv";
+  // mpv.nTracks = 2;
   mpv.file = "./assets/epic_sax.brstm";
   mpv.pipe = "/tmp/mpvtmp";
   mpv.updateInterval = 300;
@@ -33,9 +37,22 @@ void main(List<String> arguments) async {
   // mpv.pipe = "./mpvtmp";
   await mpv.start();
   await Future.delayed(Duration(seconds: 2));
+  await mpv.loadFile(brstmPath);
+  await Future.delayed(Duration(seconds: 2));
   await mpv.enableLoop();
+  await mpv.setLoopPoint(0);
+  await mpv.seek(9.3658);
   await mpv.setLoopPoint(5.376);
-  while (mpv.isRunning) {
+  
+  // Timer.periodic(Duration(seconds: 5), (timer) {
+  //   if (track == 0) {
+  //     mpv.switchToTrack(track = 1);
+  //   } else {
+  //     mpv.switchToTrack(track = 0);
+  //   }
+  // });
+  
+  while (mpv.getRunningState()) {
     print(mpv.getTimePos());
     await Future.delayed(Duration(seconds: 1));
   }

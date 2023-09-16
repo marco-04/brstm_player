@@ -30,13 +30,14 @@ class MPVPlayer {
 
   Timer? _periodicAction;
 
-  // Timer? timeoutCheck;
+  Timer? timeoutCheck;
 
-  // Future<void> _timeoutCheck() async {
-  //   timeoutCheck = Timer.periodic(Duration(seconds: 1), (timer) {
-  //     if (!_pingLock) checkIfRunning();
-  //   });
-  // }
+  void _timeoutCheck() {
+    timeoutCheck = Timer.periodic(Duration(seconds: 1), (timer) async {
+      await ping();
+      if (!_pingLock) checkIfRunning();
+    });
+  }
 
   Future<void> start() async {
     if (_isRunning) return;
@@ -59,7 +60,7 @@ class MPVPlayer {
       // print(data.strip());
     });
 
-    // _timeoutCheck();
+    _timeoutCheck();
   }
 
   Future<void> setTimeUpdate() async {
@@ -82,37 +83,33 @@ class MPVPlayer {
 
   String jsonGen(String property, String requestType) => '{"result":$property,"requestType":"$requestType"}';
 
-  // void checkIfRunning() {
-  //   int timeout = 4;
+  Future<void> checkIfRunning() async {
+    int timeout = 10;
 
-  //   if (!_isRunning) {
-  //     return;
-  //   }
+    if (!_isRunning) {
+      return;
+    }
+    if (_pingLock) {
+      return;
+    }
 
-  //   while (_pingLock) sleep(Duration(milliseconds: updateInterval));
+    _pingLock = true;
 
-  //   if (!_isRunning) {
-  //     return;
-  //   }
+    while (!_pingResult && timeout > 0) {
+      await Future.delayed(Duration(seconds: 1));
+      timeout--;
+    }
 
-  //   _pingLock = true;
+    if (!_pingResult) {
+      await cancelPeriodicAction();
+      await quit();
+      _pingLock = false;
+      throw Exception("[ERROR]: Player reply timeout");
+    }
 
-  //   send("show-text ${jsonGen("true", "ping")}");
-  //   while (!_pingResult && timeout > 0) {
-  //    sleep(Duration(seconds: 1));
-  //     timeout--;
-  //   }
-
-  //   if (!_pingResult) {
-  //     cancelPeriodicAction();
-  //     quit();
-  //     _pingLock = false;
-  //     throw Exception("[ERROR]: Player reply timeout");
-  //   }
-
-  //   _pingResult = false;
-  //   _pingLock = false;
-  // }
+    _pingResult = false;
+    _pingLock = false;
+  }
 
   Future<void> switchToTrack(int track) async {
     if (nTracks < 2) return;
@@ -175,6 +172,10 @@ class MPVPlayer {
 
   Future<void> updateDuration() async {
     await send("show-text ${jsonGen(r'${=duration}', 'duration')}");
+  }
+
+  Future<void> ping() async {
+    await send("show-text ${jsonGen("true", "ping")}");
   }
 
   Future<void> toggleLoop() async {

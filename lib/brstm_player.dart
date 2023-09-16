@@ -222,7 +222,7 @@ class MPVPlayer {
     if (Platform.isLinux) {
       await Process.run("sh", ["-c", "echo '$cmd'" + " | socat - $pipe"]);
     } else {
-      throw Exception("[ERROR]: Windows cmd is not yet implemented");
+      await Process.run("cmd", ["/c", "echo '$cmd'" + ">$pipe"]);
     }
     // if (!_isConnected) {
     //   print("[WARNING]: Could not verify the connection with mpv");

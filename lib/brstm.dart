@@ -85,7 +85,8 @@ class BRSTM {
 
   bool isOpen() => _brstmBuffer != null && _brstmBuffer?.positionSync() != null;
   bool isBrstm() => _isBrstmFile;
-
+  String? getFilePath() => _brstmFile?.path;
+  int? getFileSize() => _brstmFile?.lengthSync();
   /// Reads 4 bytes "magic strings" starting at current position (included).
   String? readMagic(ByteData buf) {
     if (!isOpen()) return null;

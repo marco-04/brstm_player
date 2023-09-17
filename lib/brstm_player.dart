@@ -233,7 +233,7 @@ class MPVPlayer {
     if (Platform.isLinux) {
       await Process.run("sh", ["-c", "echo '$cmd'" + " | socat - $pipe"]);
     } else {
-      await Process.run("cmd", ["/c", "echo '$cmd'" + ">$pipe"]);
+      await Process.run("cmd", ["/c", "echo $cmd" + ">$pipe"]);
     }
     // if (!_isConnected) {
     //   print("[WARNING]: Could not verify the connection with mpv");

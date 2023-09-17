@@ -56,7 +56,9 @@ class MPVPlayer {
       print(data);
     });
     mpvProcess!.stderr.transform(utf8.decoder).listen((data) {
-      read(data.strip());
+      // KILL IT WITH FIRE
+      data = data.strip().replaceAll(RegExp(r'[^a-zA-Z0-9(){}:.,;"\/\\\[\]\ \-_]'), "").trim();
+      read(data);
       // print(data.strip());
     });
 
@@ -190,12 +192,16 @@ class MPVPlayer {
     await send("set ab-loop-count 0");
   }
 
+  Future<void> playPause() async {
+    await send("cycle pause");
+  }
+
   Future<void> play() async {
-    await send("set pause false");
+    await send("set pause no");
   }
 
   Future<void> pause() async {
-    await send("set pause true");
+    await send("set pause yes");
   }
 
   Future<void> setLoopPoint(double seconds) async {

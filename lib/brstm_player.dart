@@ -56,8 +56,13 @@ class MPVPlayer {
       print(data);
     });
     mpvProcess!.stderr.transform(utf8.decoder).listen((data) {
-      // KILL IT WITH FIRE
-      data = data.strip().replaceAll(RegExp(r'[^a-zA-Z0-9(){}:.,;"\/\\\[\]\ \-_]'), "").trim();
+      if (Platform.isLinux) {
+        // KILL IT WITH FIRE
+        data = data.strip().replaceAll(RegExp(r'[^a-zA-Z0-9(){}:.,;"\/\\\[\]\ \-_]'), "").trim();
+      } else {
+        // We reserved a stronger flamethrower just for dealing with Cringedos
+        data = data.strip().replaceAll(RegExp("osd-msg3: *"), "").replaceAll(RegExp(r'[^a-zA-Z0-9(){}:.,;"\/\\\[\]\ \-_]'), "").replaceAll(r'\"', '"').trim();
+      }
       read(data);
       // print(data.strip());
     });
@@ -165,19 +170,19 @@ class MPVPlayer {
   }
 
   Future<void> updateTimePos() async {
-    await send("show-text ${jsonGen(r'${=time-pos}', 'playback')}");
+    await send("${Platform.isLinux ? 'show-text' : 'set osd-msg3'} ${jsonGen(r'${=time-pos}', 'playback')}");
   }
 
   Future<void> updateCurrentlyPlaying() async {
-    await send("show-text ${jsonGen(r'"${path}"', 'current')}");
+    await send("${Platform.isLinux ? 'show-text' : 'set osd-msg3'} ${jsonGen(r'"${path}"', 'current')}");
   }
 
   Future<void> updateDuration() async {
-    await send("show-text ${jsonGen(r'${=duration}', 'duration')}");
+    await send("${Platform.isLinux ? 'show-text' : 'set osd-msg3'} ${jsonGen(r'${=duration}', 'duration')}");
   }
 
   Future<void> ping() async {
-    await send("show-text ${jsonGen("true", "ping")}");
+    await send("${Platform.isLinux ? 'show-text' : 'set osd-msg3'} ${jsonGen("true", "ping")}");
   }
 
   Future<void> toggleLoop() async {

@@ -5,11 +5,11 @@ import 'package:brstm_player/brstm_player.dart';
 import 'dart:async';
 
 void main(List<String> arguments) async {
-  String brstmPath = "/tmp/epic_sax.brstm";
   int track = 0;
-  var test = BRSTM("./assets/epic_sax.brstm");
+  String brstmPath = Platform.isLinux ? "/tmp/epic_sax.brstm" : r"C:\Users\matte\Documents\Coding\brstm_player\assets\epic_sax.brstm";
+  var test = BRSTM(brstmPath);
   print(r"\\\\\\\\\");
-  print(test);
+  // print(test);
 
   test.open();
   await test.read();
@@ -30,20 +30,23 @@ void main(List<String> arguments) async {
   MPVPlayer mpv = MPVPlayer();
   mpv.binary = "mpv";
   // mpv.nTracks = 2;
-  mpv.file = "./assets/epic_sax.brstm";
-  mpv.pipe = "/tmp/mpvtmp";
+
+  mpv.pipe = Platform.isLinux ? "/tmp/mpvsocket" : r"\\.\pipe\mpvsocket";
   mpv.updateInterval = 300;
-  await Process.run("rm", [mpv.pipe]);
+
+  if (File(mpv.pipe).existsSync()) {
+    File(mpv.pipe).deleteSync();
+  }
   // mpv.pipe = "./mpvtmp";
   await mpv.start();
   await Future.delayed(Duration(seconds: 2));
   await mpv.loadFile(brstmPath);
   await Future.delayed(Duration(seconds: 2));
   await mpv.enableLoop();
-  await mpv.setLoopPoint(0);
-  await mpv.seek(9.3658);
-  await mpv.setLoopPoint(5.376);
-  
+  await mpv.setLoopPoint(21.603492063);
+  // await mpv.seek(9.3658);
+  // await mpv.setLoopPoint(5.376);
+
   // Timer.periodic(Duration(seconds: 5), (timer) {
   //   if (track == 0) {
   //     mpv.switchToTrack(track = 1);
@@ -51,7 +54,7 @@ void main(List<String> arguments) async {
   //     mpv.switchToTrack(track = 0);
   //   }
   // });
-  
+
   while (mpv.getRunningState()) {
     print(mpv.getTimePos());
     await Future.delayed(Duration(seconds: 1));

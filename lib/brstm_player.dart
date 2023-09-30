@@ -155,7 +155,7 @@ class MPVPlayer {
       throw Exception("[ERROR]: Invalid track number");
     }
     await send(
-        "af set lavfi=[pan=${nTracks*2}c|c0=c${track*2}|c1=c${(track*2)+1}]");
+        "af set lavfi=[pan=${nTracks * 2}c|c0=c${track * 2}|c1=c${(track * 2) + 1}]");
   }
 
   // Future<void> _periodicLoadFile(String file) async {
@@ -184,10 +184,14 @@ class MPVPlayer {
 
     // await Future.delayed(Duration(milliseconds: updateInterval));
     if (hasIllegalCharacters(file)) {
-      throw Exception("[ERROR]: '$file' contains illegal characters: ${_illegalRegExp.allMatches(file).map((match) => match.group(0)).toList()}");
+      throw Exception(
+          "[ERROR]: '$file' contains illegal characters: ${_illegalRegExp.allMatches(file).map((match) => match.group(0)).toList()}");
     }
-
-    await send("loadfile \"$file\" replace");
+    if (Platform.isWindows) {
+      await send("loadfile '$file' replace");
+    } else {
+      await send("loadfile \"$file\" replace");
+    }
     _isPlaying = true;
 
     await setTimeUpdate();
@@ -202,7 +206,7 @@ class MPVPlayer {
     if (_duration == 0) {
       throw Exception("[ERROR]: Invalid duration");
     }
-    return _timePos/_duration;
+    return _timePos / _duration;
   }
 
   Future<void> updateTimePos() async {
@@ -322,7 +326,7 @@ class MPVPlayer {
         default:
           break;
       }
- 
+
       if (exec == null) {
         return;
       }
@@ -351,7 +355,8 @@ class brstmPlayer {
 
   // MPVPlayer player = MPVPlayer(verbose: true, _periodicAction: 1);
 
-  brstmPlayer(int tracks, int channels, int sampleRate, int loopStartSample, int duration, String path) {
+  brstmPlayer(int tracks, int channels, int sampleRate, int loopStartSample,
+      int duration, String path) {
     // _tracks = tracks;
     // _channels = channels;
     // _sampleRate = sampleRate;
@@ -360,5 +365,4 @@ class brstmPlayer {
     // _path = path.substring(0, path.lastIndexOf("/"));
     // _name = path.substring(path.lastIndexOf("/")+1, path.length);
   }
-
 }

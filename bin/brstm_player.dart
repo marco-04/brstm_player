@@ -6,7 +6,9 @@ import 'dart:async';
 
 void main(List<String> arguments) async {
   int track = 0;
-  String brstmPath = Platform.isLinux ? "/tmp/SameOldStory.brstm" : r"C:\Users\matte\Documents\Coding\brstm_player\assets\epic_sax.brstm";
+  String brstmPath = Platform.isLinux
+      ? "/tmp/SameOldStory.brstm"
+      : r"C:\Users\matte\Documents\Coding\brstm_player\assets\epic_sax.brstm";
   var test = BRSTM(brstmPath);
   print(r"\\\\\\\\\");
   // print(test);

@@ -23,6 +23,8 @@ class MPVPlayer {
 
   // bool _cancelLoad = false;
 
+  final RegExp _illegalRegExp = RegExp(r'[^a-zA-Z0-9.\[\]()\ \-_\/\\]');
+
   bool _pingLock = false;
   bool _pingResult = false;
 
@@ -151,8 +153,11 @@ class MPVPlayer {
     // _isConnected = true;
 
     // await Future.delayed(Duration(milliseconds: updateInterval));
+    if (hasIllegalCharacters(file)) {
+      throw Exception("[ERROR]: '$file' contains illegal characters: ${_illegalRegExp.allMatches(file).map((match) => match.group(0)).toList()}");
+    }
 
-    await send("loadfile $file replace");
+    await send("loadfile \"$file\" replace");
 
     await setTimeUpdate();
 
@@ -245,6 +250,8 @@ class MPVPlayer {
   double getDuration() => _duration;
 
   bool getRunningState() => _isRunning;
+
+  bool hasIllegalCharacters(String str) => str.contains(_illegalRegExp);
 
   Future<void> read(String ret) async {
     try {

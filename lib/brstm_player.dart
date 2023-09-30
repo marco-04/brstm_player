@@ -24,7 +24,7 @@ class MPVPlayer {
 
   // bool _cancelLoad = false;
 
-  final RegExp _illegalRegExp = RegExp(r'[^a-zA-Z0-9.\[\]()\ \-_\/\\]');
+  final RegExp _illegalRegExp = RegExp(r'[^a-zA-Z0-9.:\[\]()\ \-_\/\\]');
 
   bool _pingLock = false;
   bool _pingResult = false;

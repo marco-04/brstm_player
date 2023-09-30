@@ -19,7 +19,8 @@ const int _LOOP_FLAG_OFFSET = 0x01;
 const int _N_CHANNEL_OFFSET = 0x02;
 const int _SAMPLE_RATE_OFFSET = 0x03;
 const int _LOOP_START_OFFSET = 0x08;
-const int _TOTAL_SAMPLES_OFFSET = 0x0C;
+///Previosly known as `_TOTAL_SAMPLES_OFFSET`
+const int _LOOP_END_OFFSET = 0x0C;
 
 class BRSTM {
   //bool _BOM = false;
@@ -49,7 +50,8 @@ class BRSTM {
   int _sampleRate = 0;
   int _loop = 0;
   int _loopStartSample = 0;
-  int _totalSamples = 0;
+  ///Previosly known as `_totalSamples`
+  int _loopEndSample = 0;
 
   bool _isBrstmFile = false;
 
@@ -79,7 +81,7 @@ class BRSTM {
         ' sampleRate: $_sampleRate,'
         ' loop: $_loop,'
         ' loopStartSample: $_loopStartSample,'
-        ' totalSamples: $_totalSamples'
+        ' loopEndSample: $_loopEndSample'
         '}';
   }
 
@@ -87,6 +89,130 @@ class BRSTM {
   bool isBrstm() => _isBrstmFile;
   String? getFilePath() => _brstmFile?.path;
   int? getFileSize() => _brstmFile?.lengthSync();
+  int? getLoopStart() => _loopStartSample;
+  int? getLoopEnd() => _loopEndSample;
+  int? getSampleRate() => _sampleRate;
+  int? getChannels() => _channels;
+
+  double? getDuration() => _loopEndSample / _sampleRate;
+
+  ///Sets `_loopStartSample` variable and updates `_headContents`
+  int setLoopPointSampleStart(int loopPoint) {
+    _loopStartSample = loopPoint;
+    writeHeadToFileSync();
+
+    return loopPoint;
+  }
+
+  ///Sets `_loopEndSample` variable and updates `_headContents`
+  int setLoopPointSampleEnd(int loopPoint) {
+    _loopEndSample = loopPoint;
+    writeHeadToFileSync();
+    return loopPoint;
+  }
+
+  ///Copies `_tracks`,`_channels`,`_sampleRate`,`_loop`,`_loopStartSample`,`_loopEndSample` in `_headContents`
+  void writeHeadToFileSync() {
+    if (!isOpen()) {
+      throw Exception('[FAILED]: File is not open');
+    }
+    if (!_isBrstmFile) {
+      throw Exception(
+          '[FAILED]: File does not appear to be a brstm. Did you read the header first?');
+    }
+
+    RandomAccessFile raf = _brstmFile!.openSync(mode: FileMode.append);
+
+    // _headContents!.setUint8(
+    //     _HEAD_REFS_OFFSET +
+    //         _tableOffsets![BrstmTables.streamDataTable.index] +
+    //         _LOOP_FLAG_OFFSET,
+    //     _loop);
+
+    raf.setPositionSync(_HEADER_SIZE +
+        _HEAD_REFS_OFFSET +
+        _tableOffsets![BrstmTables.streamDataTable.index] +
+        _LOOP_FLAG_OFFSET);
+
+    raf.writeByteSync(_loop);
+    // _headContents!.setUint8(
+    //     _HEAD_REFS_OFFSET +
+    //         _tableOffsets![BrstmTables.streamDataTable.index] +
+    //         _N_CHANNEL_OFFSET,
+    //     _channels);
+    raf.setPositionSync(_HEADER_SIZE +
+        _HEAD_REFS_OFFSET +
+        _tableOffsets![BrstmTables.streamDataTable.index] +
+        _N_CHANNEL_OFFSET);
+    raf.writeByteSync(_channels);
+    // setUint24(
+    //     _headContents as ByteData,
+    //     _HEAD_REFS_OFFSET +
+    //         _tableOffsets![BrstmTables.streamDataTable.index] +
+    //         _SAMPLE_RATE_OFFSET,
+    //     _sampleRate);
+
+    raf.setPositionSync(_HEADER_SIZE +
+        _HEAD_REFS_OFFSET +
+        _tableOffsets![BrstmTables.streamDataTable.index] +
+        _SAMPLE_RATE_OFFSET);
+    raf.writeByteSync((_sampleRate >> 16) & 0xFF); // Write the first byte
+    raf.writeByteSync((_sampleRate >> 8) & 0xFF); // Write the second byte
+    raf.writeByteSync(_sampleRate & 0xFF); // Write the third byte
+
+    // _headContents!.setUint32(
+    //     _HEAD_REFS_OFFSET +
+    //         _tableOffsets![BrstmTables.streamDataTable.index] +
+    //         _LOOP_START_OFFSET,
+    //     _loopStartSample);
+    raf.setPositionSync(_HEADER_SIZE +
+        _HEAD_REFS_OFFSET +
+        _tableOffsets![BrstmTables.streamDataTable.index] +
+        _LOOP_START_OFFSET);
+    raf.writeByteSync((_loopStartSample >> 24) & 0xFF); // Write the first byte
+    raf.writeByteSync((_loopStartSample >> 16) & 0xFF); // Write the second byte
+    raf.writeByteSync((_loopStartSample >> 8) & 0xFF); // Write the third byte
+    raf.writeByteSync(_loopStartSample & 0xFF);
+
+    // _headContents!.setUint32(
+    //     _HEAD_REFS_OFFSET +
+    //         _tableOffsets![BrstmTables.streamDataTable.index] +
+    //         _LOOP_END_OFFSET,
+    //     _loopEndSample);
+    raf.setPositionSync(_HEADER_SIZE +
+        _HEAD_REFS_OFFSET +
+        _tableOffsets![BrstmTables.streamDataTable.index] +
+        _LOOP_END_OFFSET);
+    print(_HEADER_SIZE +
+        _HEAD_REFS_OFFSET +
+        _tableOffsets![BrstmTables.streamDataTable.index] +
+        _LOOP_END_OFFSET);
+
+    raf.writeByteSync((_loopEndSample >> 24) & 0xFF); // Write the first byte
+    raf.writeByteSync((_loopEndSample >> 16) & 0xFF); // Write the second byte
+    raf.writeByteSync((_loopEndSample >> 8) & 0xFF); // Write the third byte
+    raf.writeByteSync(_loopEndSample & 0xFF);
+
+    // _headContents!.setUint32(
+    //     0x14 + _tableOffsets![BrstmTables.streamDataTable.index],
+    //     _totalSamples);
+
+    // _headContents!.setUint8(
+    //     _HEAD_REFS_OFFSET + _tableOffsets![BrstmTables.trackTable.index],
+    //     _tracks);
+    raf.setPositionSync(_HEADER_SIZE +
+        _HEAD_REFS_OFFSET +
+        _tableOffsets![BrstmTables.trackTable.index]);
+
+    raf.writeByteSync(_tracks);
+
+    // print(_HEAD_REFS_OFFSET + _tableOffsets![BrstmTables.trackTable.index]);
+    // print(_tracks);
+    raf.flushSync();
+    raf.closeSync();
+    readHeadSync();
+  }
+
   /// Reads 4 bytes "magic strings" starting at current position (included).
   String? readMagic(ByteData buf) {
     if (!isOpen()) return null;
@@ -100,6 +226,24 @@ class BRSTM {
     // Shift tmp by one byte (8 bits) to the right to get rid of the rightmost byte
     tmp >>= 8;
     return tmp;
+  }
+
+  void setUint24(ByteData byteData, int byteOffset, int value24) {
+    // Ensure that the value is within the 24-bit range
+    if (value24 < 0 || value24 > 0xFFFFFF) {
+      throw ArgumentError(
+          'The value must be between 0 and 0xFFFFFF (24 bits).');
+    }
+
+    // Extract the three separate bytes from the 24-bit value
+    int byte1 = (value24 >> 16) & 0xFF;
+    int byte2 = (value24 >> 8) & 0xFF;
+    int byte3 = value24 & 0xFF;
+
+    // Use the existing methods to write the three bytes
+    byteData.setUint8(byteOffset, byte1);
+    byteData.setUint8(byteOffset + 1, byte2);
+    byteData.setUint8(byteOffset + 2, byte3);
   }
 
   ///Opens the files and sets `_brstmBuffer` to position 0.
@@ -129,8 +273,10 @@ class BRSTM {
     _headerContents =
         ByteData.view(_brstmBuffer!.readSync(_HEADER_SIZE).buffer);
 
-    if (!(_isBrstmFile = ((tmpMagic = readMagic(_headerContents as ByteData)) == "RSTM"))) {
-      throw Exception('[FAILED]: File does not appear to be a brstm. Header magic string check failed ($tmpMagic != RSTM)');
+    if (!(_isBrstmFile =
+        ((tmpMagic = readMagic(_headerContents as ByteData)) == "RSTM"))) {
+      throw Exception(
+          '[FAILED]: File does not appear to be a brstm. Header magic string check failed ($tmpMagic != RSTM)');
     }
   }
 
@@ -152,18 +298,26 @@ class BRSTM {
     _brstmBuffer!.setPositionSync(_HEADER_SIZE);
     _headContents = ByteData.view(_brstmBuffer!.readSync(_headSize).buffer);
 
-    if (!(_isBrstmFile = ((tmpMagic = readMagic(_headContents as ByteData)) == "HEAD"))) {
-      throw Exception('[FAILED]: File does not appear to be a brstm. HEAD magic string check failed ($tmpMagic != HEAD)');
+    if (!(_isBrstmFile =
+        ((tmpMagic = readMagic(_headContents as ByteData)) == "HEAD"))) {
+      throw Exception(
+          '[FAILED]: File does not appear to be a brstm. HEAD magic string check failed ($tmpMagic != HEAD)');
     }
 
-    var (tracks, channels, sampleRate, loop, loopStartSample, totalSamples) =
-        _parseHeadSync();
+    var (
+      tracks,
+      channels,
+      sampleRate,
+      loop,
+      loopStartSample,
+      loopEndSample,
+    ) = _parseHeadSync();
     _tracks = tracks;
     _channels = channels;
     _sampleRate = sampleRate;
     _loop = loop;
     _loopStartSample = loopStartSample;
-    _totalSamples = totalSamples;
+    _loopEndSample = loopEndSample;
   }
 
   ///Updates the contents of `_tableOffsets`. The HEAD must be read first.
@@ -192,10 +346,11 @@ class BRSTM {
 
   ///Parses `_headContents`.
   ///
-  ///Returns (tracks,channels,sampleRate,loop,loopStartSample,totalSamples)
+  ///Returns (tracks,channels,sampleRate,loop,loopStartSample,loopEndSample)
   (int, int, int, int, int, int) _parseHeadSync() {
     if (!isOpen()) {
-      throw Exception('[FAILED]: Cannot the read file. Please call open() first.');
+      throw Exception(
+          '[FAILED]: Cannot the read file. Please call open() first.');
     }
 
     if (!_readTablesSync()) {
@@ -215,13 +370,20 @@ class BRSTM {
     int loopStartSample = _headContents!.getUint32(_HEAD_REFS_OFFSET +
         _tableOffsets![BrstmTables.streamDataTable.index] +
         _LOOP_START_OFFSET);
-    int totalSamples = _headContents!.getUint32(_HEAD_REFS_OFFSET +
+    int loopEndSample = _headContents!.getUint32(_HEAD_REFS_OFFSET +
         _tableOffsets![BrstmTables.streamDataTable.index] +
-        _TOTAL_SAMPLES_OFFSET);
+        _LOOP_END_OFFSET);
     int tracks = _headContents!.getUint8(
         _HEAD_REFS_OFFSET + _tableOffsets![BrstmTables.trackTable.index]);
 
-    return (tracks, channels, sampleRate, loop, loopStartSample, totalSamples);
+    return (
+      tracks,
+      channels,
+      sampleRate,
+      loop,
+      loopStartSample,
+      loopEndSample
+    );
   }
 
   ///Synchronously reads the files
@@ -246,14 +408,16 @@ class BRSTM {
     _headerContents =
         ByteData.view(_brstmBuffer!.readSync(_HEADER_SIZE).buffer);
 
-    if (!(_isBrstmFile = ((tmpMagic = readMagic(_headerContents as ByteData)) == "RSTM"))) {
-      throw Exception('[FAILED]: File does not appear to be a brstm. Header magic string check failed ($tmpMagic != RSTM)');
+    if (!(_isBrstmFile =
+        ((tmpMagic = readMagic(_headerContents as ByteData)) == "RSTM"))) {
+      throw Exception(
+          '[FAILED]: File does not appear to be a brstm. Header magic string check failed ($tmpMagic != RSTM)');
     }
   }
 
   ///Asynchronously reads the HEAD partition of the file. The Header must be read first
   ///
-  ///This updates the `_headContents`, `_tracks`,`_channels`,`_sampleRate`,`_loop`,`_loopStartSample`,`_totalSamples`.
+  ///This updates the `_headContents`, `_tracks`,`_channels`,`_sampleRate`,`_loop`,`_loopStartSample`,`_loopEndSample`.
   Future<void> readHead() async {
     if (!isOpen()) {
       throw Exception("[FAILED]: File does not appear to be open");
@@ -273,18 +437,26 @@ class BRSTM {
     await _brstmBuffer!.setPosition(_HEADER_SIZE);
     _headContents = ByteData.view(_brstmBuffer!.readSync(_headSize).buffer);
 
-    if (!(_isBrstmFile = ((tmpMagic = readMagic(_headContents as ByteData)) == "HEAD"))) {
-      throw Exception('[FAILED]: File does not appear to be a brstm. HEAD magic string check failed ($tmpMagic != HEAD)');
+    if (!(_isBrstmFile =
+        ((tmpMagic = readMagic(_headContents as ByteData)) == "HEAD"))) {
+      throw Exception(
+          '[FAILED]: File does not appear to be a brstm. HEAD magic string check failed ($tmpMagic != HEAD)');
     }
 
-    var (tracks, channels, sampleRate, loop, loopStartSample, totalSamples) =
-        await _parseHead();
+    var (
+      tracks,
+      channels,
+      sampleRate,
+      loop,
+      loopStartSample,
+      loopEndSample
+    ) = await _parseHead();
     _tracks = tracks;
     _channels = channels;
     _sampleRate = sampleRate;
     _loop = loop;
     _loopStartSample = loopStartSample;
-    _totalSamples = totalSamples;
+    _loopEndSample = loopEndSample;
   }
 
   /// Updates the contents of `_tableOffsets`
@@ -313,10 +485,11 @@ class BRSTM {
 
   ///Asynchronously parses `_headContents`.
   ///
-  ///Returns (tracks,channels,sampleRate,loop,loopStartSample,totalSamples)
+  ///Returns (tracks,channels,sampleRate,loop,loopStartSample,loopEndSample)
   Future<(int, int, int, int, int, int)> _parseHead() async {
     if (!isOpen()) {
-      throw Exception('[FAILED]: Cannot the read file. Please call open() first.');
+      throw Exception(
+          '[FAILED]: Cannot the read file. Please call open() first.');
     }
 
     if (!await _readTables()) {
@@ -336,13 +509,20 @@ class BRSTM {
     int loopStartSample = _headContents!.getUint32(_HEAD_REFS_OFFSET +
         _tableOffsets![BrstmTables.streamDataTable.index] +
         _LOOP_START_OFFSET);
-    int totalSamples = _headContents!.getUint32(_HEAD_REFS_OFFSET +
+    int loopEndSample = _headContents!.getUint32(_HEAD_REFS_OFFSET +
         _tableOffsets![BrstmTables.streamDataTable.index] +
-        _TOTAL_SAMPLES_OFFSET);
+        _LOOP_END_OFFSET);
     int tracks = _headContents!.getUint8(
         _HEAD_REFS_OFFSET + _tableOffsets![BrstmTables.trackTable.index]);
 
-    return (tracks, channels, sampleRate, loop, loopStartSample, totalSamples);
+    return (
+      tracks,
+      channels,
+      sampleRate,
+      loop,
+      loopStartSample,
+      loopEndSample
+    );
   }
 
   ///Asynchronously reads the files

@@ -19,6 +19,7 @@ class MPVPlayer {
   int updateInterval = 0;
 
   bool _isRunning = false;
+  bool _isPlaying = false;
   // bool _isConnected = false;
 
   // bool _cancelLoad = false;
@@ -34,19 +35,30 @@ class MPVPlayer {
 
   Timer? timeoutCheck;
 
-  void _timeoutCheck() {
-    timeoutCheck = Timer.periodic(Duration(seconds: 1), (timer) async {
+  void _timeoutCheck(int seconds) {
+    timeoutCheck = Timer.periodic(Duration(seconds: seconds), (timer) async {
+      if (!_isRunning) {
+        timer.cancel();
+        timeoutCheck?.cancel();
+        return;
+      }
       await ping();
-      if (!_pingLock) checkIfRunning();
+      if (!_pingLock) checkIfRunning(seconds);
     });
   }
 
-  Future<void> start() async {
+  ///Start the mpv process. if `hangIndefinitely` is set to `true`,the program will not check if the process is hanging.
+  ///
+  ///if `hangIndefinitely` is set to `false`, a ping function will be called every `idleDuration` seconds.
+  Future<void> start(
+      {bool hangIndefinitely = false, int idleDuration = 10}) async {
     if (_isRunning) return;
 
     try {
-      mpvProcess = await Process.start(binary, ["--input-ipc-server=$pipe", "--quiet", "--idle=yes" ], runInShell: false);
-    } catch(e) {
+      mpvProcess = await Process.start(
+          binary, ["--input-ipc-server=$pipe", "--quiet", "--idle=yes"],
+          runInShell: false);
+    } catch (e) {
       throw Exception("[ERROR]: Cannot start mpv player instance ($e)");
     }
 
@@ -60,26 +72,42 @@ class MPVPlayer {
     mpvProcess!.stderr.transform(utf8.decoder).listen((data) {
       if (Platform.isLinux) {
         // KILL IT WITH FIRE
-        data = data.strip().replaceAll(RegExp(r'[^a-zA-Z0-9(){}:.,;"\/\\\[\]\ \-_]'), "").trim();
+        data = data
+            .strip()
+            .replaceAll(RegExp(r'[^a-zA-Z0-9(){}:.,;"\/\\\[\]\ \-_]'), "")
+            .trim();
       } else {
         // We reserved a stronger flamethrower just for dealing with Cringedos
-        data = data.strip().replaceAll(RegExp("osd-msg3: *"), "").replaceAll(RegExp(r'[^a-zA-Z0-9(){}:.,;"\/\\\[\]\ \-_]'), "").replaceAll(r'\"', '"').trim();
+        data = data
+            .strip()
+            .replaceAll(RegExp("osd-msg3: *"), "")
+            .replaceAll(RegExp(r'[^a-zA-Z0-9(){}:.,;"\/\\\[\]\ \-_]'), "")
+            .replaceAll(r'\"', '"')
+            .trim();
       }
       read(data);
-      // print(data.strip());
     });
-
-    _timeoutCheck();
+    if (!hangIndefinitely) {
+      _timeoutCheck(idleDuration);
+    }
   }
 
   Future<void> setTimeUpdate() async {
-    if (!_isRunning) {
+    if (!_isPlaying) {
+      _periodicAction?.cancel();
       return;
     }
 
-    _periodicAction = Timer.periodic(Duration(milliseconds: updateInterval), (timer) {
+    _periodicAction =
+        Timer.periodic(Duration(milliseconds: updateInterval), (timer) async {
+      if (!_isPlaying) {
+        _periodicAction?.cancel();
+        timer.cancel();
+
+        return;
+      }
+
       updateTimePos();
-      // if (!_pingLock) checkIfRunning();
     });
   }
 
@@ -90,10 +118,11 @@ class MPVPlayer {
     }
   }
 
-  String jsonGen(String property, String requestType) => '{"result":$property,"requestType":"$requestType"}';
+  String jsonGen(String property, String requestType) =>
+      '{"result":$property,"requestType":"$requestType"}';
 
-  Future<void> checkIfRunning() async {
-    int timeout = 10;
+  Future<void> checkIfRunning(int seconds) async {
+    int timeout = seconds;
 
     if (!_isRunning) {
       return;
@@ -125,7 +154,8 @@ class MPVPlayer {
     if (track < 0 || track >= _MAX_TRACKS) {
       throw Exception("[ERROR]: Invalid track number");
     }
-    await send("af set lavfi=[pan=${nTracks*2}c|c0=c${track*2}|c1=c${(track*2)+1}]");
+    await send(
+        "af set lavfi=[pan=${nTracks*2}c|c0=c${track*2}|c1=c${(track*2)+1}]");
   }
 
   // Future<void> _periodicLoadFile(String file) async {
@@ -158,6 +188,7 @@ class MPVPlayer {
     }
 
     await send("loadfile \"$file\" replace");
+    _isPlaying = true;
 
     await setTimeUpdate();
 
@@ -175,19 +206,23 @@ class MPVPlayer {
   }
 
   Future<void> updateTimePos() async {
-    await send("${Platform.isLinux ? 'show-text' : 'set osd-msg3'} ${jsonGen(r'${=time-pos}', 'playback')}");
+    await send(
+        "${Platform.isLinux ? 'show-text' : 'set osd-msg3'} ${jsonGen(r'${=time-pos}', 'playback')}");
   }
 
   Future<void> updateCurrentlyPlaying() async {
-    await send("${Platform.isLinux ? 'show-text' : 'set osd-msg3'} ${jsonGen(r'"${path}"', 'current')}");
+    await send(
+        "${Platform.isLinux ? 'show-text' : 'set osd-msg3'} ${jsonGen(r'"${path}"', 'current')}");
   }
 
   Future<void> updateDuration() async {
-    await send("${Platform.isLinux ? 'show-text' : 'set osd-msg3'} ${jsonGen(r'${=duration}', 'duration')}");
+    await send(
+        "${Platform.isLinux ? 'show-text' : 'set osd-msg3'} ${jsonGen(r'${=duration}', 'duration')}");
   }
 
   Future<void> ping() async {
-    await send("${Platform.isLinux ? 'show-text' : 'set osd-msg3'} ${jsonGen("true", "ping")}");
+    await send(
+        "${Platform.isLinux ? 'show-text' : 'set osd-msg3'} ${jsonGen("true", "ping")}");
   }
 
   Future<void> toggleLoop() async {
@@ -204,13 +239,20 @@ class MPVPlayer {
 
   Future<void> playPause() async {
     await send("cycle pause");
+    _isPlaying = !_isPlaying;
+    if (_isPlaying) {
+      await setTimeUpdate();
+    }
   }
 
   Future<void> play() async {
+    _isPlaying = true;
+    await setTimeUpdate();
     await send("set pause no");
   }
 
   Future<void> pause() async {
+    _isPlaying = false;
     await send("set pause yes");
   }
 
@@ -218,8 +260,9 @@ class MPVPlayer {
     await send("set ab-loop-a $seconds");
     await send(r"set ab-loop-b ${=duration}");
   }
-  
+
   Future<void> stop() async {
+    _isPlaying = false;
     // _cancelLoad = true;
     await send("stop");
   }
@@ -230,10 +273,11 @@ class MPVPlayer {
 
   Future<void> quit() async {
     // _cancelLoad = true;
+    _isPlaying = false;
     await send("quit");
     _isRunning = false;
   }
-  
+
   Future<void> send(String cmd) async {
     if (Platform.isLinux) {
       await Process.run("sh", ["-c", "echo '$cmd'" + " | socat - $pipe"]);
@@ -251,6 +295,8 @@ class MPVPlayer {
 
   bool getRunningState() => _isRunning;
 
+  bool getPlayerState() => _isPlaying;
+
   bool hasIllegalCharacters(String str) => str.contains(_illegalRegExp);
 
   Future<void> read(String ret) async {
@@ -258,10 +304,11 @@ class MPVPlayer {
       Function? exec;
 
       var readret = json.decode(ret) as Map<String, dynamic>;
-      if (!readret.containsKey("result") || !readret.containsKey("requestType")) {
+      if (!readret.containsKey("result") ||
+          !readret.containsKey("requestType")) {
         return;
       }
-      switch(readret["requestType"]) {
+      switch (readret["requestType"]) {
         case "playback":
           exec = (double pos) => _timePos = pos;
           break;
@@ -275,7 +322,7 @@ class MPVPlayer {
         default:
           break;
       }
-      
+ 
       if (exec == null) {
         return;
       }

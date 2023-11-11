@@ -282,6 +282,15 @@ class MPVPlayer {
     _isRunning = false;
   }
 
+  Future<void> volume(int percentage) async {
+    await send("volume $percentage");
+  }
+
+  /// Untested
+  Future<void> volumeRelative(int increment) async {
+    await send("add volume $increment");
+  }
+
   Future<void> send(String cmd) async {
     if (Platform.isLinux) {
       await Process.run("sh", ["-c", "echo '$cmd'" + " | socat - $pipe"]);

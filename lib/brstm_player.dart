@@ -283,7 +283,7 @@ class MPVPlayer {
   }
 
   Future<void> volume(int percentage) async {
-    await send("volume $percentage");
+    await send("set volume $percentage");
   }
 
   /// Untested
